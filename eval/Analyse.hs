@@ -5,6 +5,7 @@ import Text.Regex.Base
 import System.Environment
 import qualified Data.ByteString.Char8 as S
 import Data.Maybe
+import Data.Char
 import Data.List (unfoldr, groupBy, foldl', nub)
 import Data.Function (on)
 import Data.Array
@@ -29,18 +30,25 @@ dimDistName :: Int -> String
 dimDistName n = "dimDist" ++ show n
 dimTagName :: Int -> String
 dimTagName n = "dimTag" ++ show n
+saDepthName n = "sa" ++ depthName n
+saiDepthName n = "sai" ++ depthName n
 
 type Analysis = M.Map String Int
 type ModAnalysis = M.Map String Analysis
 
 -- Alongside countBySpan, also do some counts grouped by spans and variables.
 countByVars :: DimMap -> Analysis -> S.ByteString -> Analysis
-countByVars dimMap a l = M.unionsWith (+) $ [a, keysA] ++ map snd (filter fst counts)
+countByVars dimMap a l = M.unionsWith (+) $ [a, keysA] ++ varsA ++ map snd (filter fst counts)
   where
+    -- counting stuff
     counts  = [ ((get a "atLeast" > 0 && get keysA "atMost" > 0) ||
                 (get keysA "atLeast" > 0 && get a "atMost" > 0),   {- ==> -} M.singleton "boundedBoth" n)
-              , ( get keysA "reflexive" > 0 &&
-                  M.size keysA == 1                            ,   {- ==> -} M.singleton "justReflexive" n )
+              , ( isSA                                         ,   {- ==> -} M.singleton "singleAction" n)
+              , ( isSAI                                        ,   {- ==> -} M.singleton "singleActionIrr" n)
+              , ( isSA && isJust mdep                          ,   {- ==> -} M.singleton (saDepthName (fromJust mdep)) n)
+              , ( isSAI && isJust mdep                         ,   {- ==> -} M.singleton (saiDepthName (fromJust mdep)) n)
+              , ( isSAI                                        ,   {- ==> -} M.singleton "singleActionIrr" n)
+              , ( justRef                                      ,   {- ==> -} M.singleton "justReflexive" n)
               , ( ndims > 0                                    ,   {- ==> -} M.singleton (dimName ndims) n)
               , ( isJust mdep                                  ,   {- ==> -} M.singleton (depthName (fromJust mdep)) n)
               , ( regOps >= 0 && isSten                        ,   {- ==> -} M.singleton (regionOpsName regOps) n)
@@ -48,6 +56,10 @@ countByVars dimMap a l = M.unionsWith (+) $ [a, keysA] ++ map snd (filter fst co
               , ( mulOps >= 0 && isSten                        ,   {- ==> -} M.singleton (mulOpsName mulOps) n)
               , ( dimDist > 0 && isSten                        ,   {- ==> -} M.singleton (dimDistName dimDist) n)
               ]
+    -- going through each variable name and counting:
+    varsA = [ M.singleton "someReflexive" 1 | v      <- splitVars l, justRef
+                                            , expDim <- maybeToList (M.lookup v dimMap), ndims < expDim ]
+    -- generic keyword counting
     keysA   = M.fromList [ (k, n) | k <- varKeywords, l =~ re k  ] -- try each keyword
     re k    = "[^A-Za-z]" ++ k ++ "[^A-Za-z]" -- form a regular expression from a keyword
     get m k = 0 `fromMaybe` M.lookup k m -- convenience function
@@ -59,6 +71,9 @@ countByVars dimMap a l = M.unionsWith (+) $ [a, keysA] ++ map snd (filter fst co
     mulOps  = countMulOps l
     dimDist = countDimDist l
     isSten  = l =~ "\\)[[:space:]]*stencil "
+    justRef = get keysA "reflexive" > 0 && (M.size keysA == 1 || (M.size keysA == 2 && get keysA "readOnce" > 0))
+    isSA    = get keysA "forward" + get keysA "backward" + get keysA "centered" == n
+    isSAI   = isSA && get keysA "irreflexive" > 0
 
 -- Count interesting stuff in a given line, and given the group's
 -- analysis to this point, grouped by span.
@@ -119,12 +134,13 @@ vars :: S.ByteString -> S.ByteString
 vars = (=~ ":: .*$")
 srcSpanAndVars l1 l2 = srcSpan l1 == srcSpan l2 && vars l1 == vars l2
 numVars = (1 +) . S.length . S.filter (== ',') . vars
+splitVars = map (S.filter (not . isSpace)) . S.split ',' . S.drop 3 . vars
 numDims :: S.ByteString -> Int
 numDims s
-  | S.null match = 0
-  | otherwise  = (1 +) . S.length . S.filter (== ',') $ match
+  | null match = 0
+  | otherwise  = length (nub match)
   where
-    match = s =~ "\\(dims=[^\\)]*\\)"
+    match = getAllTextMatches (s =~ "\\(dim=[^\\)]*\\)") :: [S.ByteString]
 depth :: S.ByteString -> Maybe Int
 depth = fmap fst . S.readInt . S.concat . mrSubList . (=~ "depth=([0-9]*)")
 countRegionOps :: S.ByteString -> Int
