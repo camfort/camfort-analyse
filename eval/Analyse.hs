@@ -102,8 +102,8 @@ genDimMap = foldl' eachLine M.empty
 analyseExec :: [S.ByteString] -> ModAnalysis
 analyseExec [] = M.empty
 analyseExec (e1:es)
-  | any (=~ "Lexing failed") es = M.singleton modName . M.fromList $ [("lexFailed", 1), ("lexOrParseFailed", 1)] ++ linesTotal
-  | any (=~ "Parsing failed") es = M.singleton modName . M.fromList $ [("parseFailed", 1), ("lexOrParseFailed", 1)] ++ linesTotal
+  | any (=~ "lexing failed") es = M.singleton modName . M.fromList $ [("lexFailed", 1), ("lexOrParseFailed", 1)] ++ linesTotal
+  | any (=~ "parsing failed") es = M.singleton modName . M.fromList $ [("parseFailed", 1), ("lexOrParseFailed", 1)] ++ linesTotal
   | otherwise = M.singleton modName . M.unionsWith (+) . (parseOk:) . map eachGroup $ gs
   where
     gs         = groupBy ((==) `on` srcSpan) . filter (=~ "\\)[[:space:]]*(stencil|EVALMODE)") $ es
