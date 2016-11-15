@@ -48,6 +48,8 @@ countByVars dimMap a l = M.unionsWith (+) $ [a, keysA] ++ varsA ++ map snd (filt
               , ( isSA && isJust mdep                          ,   {- ==> -} M.singleton (saDepthName (fromJust mdep)) n)
               , ( isSAI && isJust mdep                         ,   {- ==> -} M.singleton (saiDepthName (fromJust mdep)) n)
               , ( isSAI                                        ,   {- ==> -} M.singleton "singleActionIrr" n)
+              , ( isMA && mulOps > 0 && plusOps == 0           ,   {- ==> -} M.singleton "multiActionMulOnly" n)
+              , ( isMA                                         ,   {- ==> -} M.singleton "multiAction" n)
               , ( justRef                                      ,   {- ==> -} M.singleton "justReflexive" n)
               , ( ndims > 0                                    ,   {- ==> -} M.singleton (dimName ndims) n)
               , ( isJust mdep                                  ,   {- ==> -} M.singleton (depthName (fromJust mdep)) n)
@@ -74,6 +76,7 @@ countByVars dimMap a l = M.unionsWith (+) $ [a, keysA] ++ varsA ++ map snd (filt
     justRef = get keysA "reflexive" > 0 && (M.size keysA == 1 || (M.size keysA == 2 && get keysA "readOnce" > 0))
     isSA    = get keysA "forward" + get keysA "backward" + get keysA "centered" == n
     isSAI   = isSA && get keysA "irreflexive" > 0
+    isMA    = get keysA "forward" + get keysA "backward" + get keysA "centered" > n
 
 -- Count interesting stuff in a given line, and given the group's
 -- analysis to this point, grouped by span.
