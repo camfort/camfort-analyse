@@ -11,16 +11,8 @@ UNIFIEDMODEL=$HOME/um
 #DIRS="$CORPUS/computational-physics-1"
 
 # for paper
-# - navier
-# - UKCA
-# - computational-physics-2
-# - e3mg-ea
-# - e3mg-modernize
-# - blas
-# - hybrid4
-# - geos-chem
-# - wrf-main
-DIRS="$CORPUS/geos-chem $CORPUS/wrf-main $CORPUS/blas $CORPUS/computational-physics-2 $CORPUS/e3mg-ea $CORPUS/e3mg-modernise $CORPUS/hybrid4 $CORPUS/navier $UNIFIEDMODEL/trunk/src"
+# ARPACK_NG, BLAS, CP, E3MG (EA), GEOS-CHEM, Hybridr4, Navier, SpecFem3D, UM
+DIRS="$CORPUS/arpack-ng $CORPUS/specfem3d $CORPUS/geos-chem $CORPUS/blas $CORPUS/computational-physics-2 $CORPUS/e3mg-ea $CORPUS/hybrid4 $CORPUS/navier $UNIFIEDMODEL/trunk/src"
 
 # select the 'sensible' name from the full pathname, somewhat subjectively
 function find_sensible_name() {
