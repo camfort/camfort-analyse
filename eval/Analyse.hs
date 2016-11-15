@@ -1,3 +1,4 @@
+{-# LANGUAGE PatternGuards #-}
 import Text.Printf (printf)
 import Text.Regex.PCRE ((=~))
 import Text.Regex.Base
@@ -9,6 +10,7 @@ import Data.Function (on)
 import Data.Array
 import qualified Data.Map as M
 import Control.Monad
+import qualified Debug.Trace as D
 
 varKeywords = [ "readOnce", "reflexive", "irreflexive", "forward", "backward", "centered", "atLeast", "atMost" ]
 spanKeywords = [ "tickAssign", "LHSnotHandled", "nonNeighbour", "emptySpec", "inconsistentIV", "relativized" ]
@@ -32,8 +34,8 @@ type Analysis = M.Map String Int
 type ModAnalysis = M.Map String Analysis
 
 -- Alongside countBySpan, also do some counts grouped by spans and variables.
-countByVars :: Analysis -> S.ByteString -> Analysis
-countByVars a l = M.unionsWith (+) $ [a, keysA] ++ map snd (filter fst counts)
+countByVars :: DimMap -> Analysis -> S.ByteString -> Analysis
+countByVars dimMap a l = M.unionsWith (+) $ [a, keysA] ++ map snd (filter fst counts)
   where
     counts  = [ ((get a "atLeast" > 0 && get keysA "atMost" > 0) ||
                 (get keysA "atLeast" > 0 && get a "atMost" > 0),   {- ==> -} M.singleton "boundedBoth" n)
@@ -77,10 +79,23 @@ countBySpan a l = M.unionsWith (+) $ [a, keysA] ++ map snd (filter fst counts)
 
 -- Look at each group that shares a source span, then each group that shares a source span and vars.
 eachGroup :: [S.ByteString] -> Analysis
-eachGroup g = M.unionsWith (+) $ a':map (foldl' countByVars M.empty) gbv
+eachGroup g = M.unionsWith (+) $ a':map (foldl' (countByVars dimMap) M.empty) gbv
   where
     a'  = foldl' countBySpan M.empty g
     gbv = groupBy ((==) `on` vars) (filter (not . S.null . vars) g)
+    dimMap = genDimMap g
+
+-- Parse dimensionality lines and form a map of variables to their dimensionality.
+type DimMap = M.Map S.ByteString Int
+genDimMap :: [S.ByteString] -> DimMap
+genDimMap = foldl' eachLine M.empty
+  where
+    eachLine :: DimMap -> S.ByteString -> DimMap
+    eachLine m bs
+      | dimS:vars:_ <- mrSubList (bs =~ "EVALMODE: dimensionality=([0-9]*) :: ([^$]*)" :: MatchResult S.ByteString) =
+        M.union m . M.fromList . zip (S.split ',' vars) . repeat $ matchToInt dimS
+      | otherwise = m
+    matchToInt = fromMaybe 0 . fmap fst . S.readInt
 
 -- Group by source span and variable in order to group multiple lines
 -- that happen to pertain to the same expression (e.g. for boundedBoth).
@@ -239,8 +254,8 @@ test1 = map S.pack [
     , "((137,3),(138,59))       EVALMODE: assign to relative array subscript (tag: tickAssign)"
     , "((139,24),(141,48))      stencil readOnce, irreflexive(dims=1,2,3), (reflexive(dim=1))*(centered(depth=1, dim=2)) + (reflexive(dim=2))*(centered(depth=1, dim=1)) :: p"
     , "((139,24),(141,48))      stencil readOnce, (reflexive(dim=1))*(reflexive(dim=2)) :: rhs"
+    , "((139,24),(141,48))      EVALMODE: dimensionality=1 :: rhs"
     , "((147,7),(147,78))       EVALMODE: LHS is an array subscript we  can't handle (tag: LHSnotHandled)"
-    , "((148,10),(148,68))      EVALMODE: dimensionality=1"
     , ""
     , "1.33user 0.04system 0:02.08elapsed 66%CPU (0avgtext+0avgdata 75672maxresident)k"
     , "0inputs+0outputs (0major+15984minor)pagefaults 0swaps"
