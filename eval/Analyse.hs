@@ -1,6 +1,6 @@
 {-# LANGUAGE PatternGuards #-}
 import Text.Printf (printf)
-import Text.Regex.PCRE ((=~))
+import Text.Regex.PCRE
 import Text.Regex.Base
 import System.Environment
 import qualified Data.ByteString.Char8 as S
@@ -32,6 +32,8 @@ dimTagName :: Int -> String
 dimTagName n = "dimTag" ++ show n
 saDepthName n = "sa" ++ depthName n
 saiDepthName n = "sai" ++ depthName n
+maOpsName :: Int -> String
+maOpsName n = "multiActionRegionOps" ++ show n
 
 type Analysis = M.Map String Int
 type ModAnalysis = M.Map String Analysis
@@ -50,6 +52,7 @@ countByVars dimMap a l = M.unionsWith (+) $ [a, keysA] ++ varsA ++ map snd (filt
               , ( isSAI                                        ,   {- ==> -} M.singleton "singleActionIrr" n)
               , ( isMA && mulOps > 0 && plusOps == 0           ,   {- ==> -} M.singleton "multiActionMulOnly" n)
               , ( isMA                                         ,   {- ==> -} M.singleton "multiAction" n)
+              , ( isMA && isSten && regOps > 0                 ,   {- ==> -} M.singleton (maOpsName regOps) n)
               , ( justRef                                      ,   {- ==> -} M.singleton "justReflexive" n)
               , ( ndims > 0                                    ,   {- ==> -} M.singleton (dimName ndims) n)
               , ( isJust mdep                                  ,   {- ==> -} M.singleton (depthName (fromJust mdep)) n)
@@ -74,10 +77,10 @@ countByVars dimMap a l = M.unionsWith (+) $ [a, keysA] ++ varsA ++ map snd (filt
     dimDist = countDimDist l
     isSten  = l =~ "\\)[[:space:]]*stencil "
     justRef = get keysA "reflexive" > 0 && (M.size keysA == 1 || (M.size keysA == 2 && get keysA "readOnce" > 0))
-    isSA    = get keysA "forward" + get keysA "backward" + get keysA "centered" == n
+    isSA    = count "forward" + count "backward" + count "centered" == 1
     isSAI   = isSA && get keysA "irreflexive" > 0
-    isMA    = get keysA "forward" + get keysA "backward" + get keysA "centered" > n
-
+    isMA    = count "forward" + count "backward" + count "centered" > n
+    count k = matchCount (makeRegex (re k) :: Regex) l
 -- Count interesting stuff in a given line, and given the group's
 -- analysis to this point, grouped by span.
 countBySpan :: Analysis -> S.ByteString -> Analysis
