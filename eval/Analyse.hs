@@ -213,7 +213,7 @@ diffMain file1 file2 = do
   let execs2 = unfoldr oneExec (S.lines input2)
   let identify :: [S.ByteString] -> S.ByteString
       identify = S.concat . take 1 . mrSubList . (=~ "FILE=\"([^\"]*)\"") . S.concat . take 1
-  let trim = drop 4 . init . init . init . init
+  let trim = filter (not . S.null) . drop 4 . init . init . init . init
   let map1 = M.fromList [ (identify e, trim e) | e <- execs1 ]
   let map2 = M.fromList [ (identify e, trim e) | e <- execs2 ]
   let dmap = M.intersectionWith (getContextDiff linesOfContext) map1 map2
