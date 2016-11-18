@@ -1,5 +1,6 @@
 {-# LANGUAGE PatternGuards #-}
 import Text.Printf (printf)
+import Text.PrettyPrint
 import Text.Regex.PCRE
 import Text.Regex.Base
 import System.Environment
@@ -9,9 +10,11 @@ import Data.Char
 import Data.List (unfoldr, groupBy, foldl', nub)
 import Data.Function (on)
 import Data.Array
-import qualified Data.Map as M
+import qualified Data.Map.Strict as M
 import Control.Monad
 import qualified Debug.Trace as D
+import Data.Algorithm.Diff
+import Data.Algorithm.DiffContext
 
 varKeywords = [ "readOnce", "reflexive", "irreflexive", "forward", "backward", "centered", "atLeast", "atMost" ]
 spanKeywords = [ "tickAssign", "LHSnotHandled", "nonNeighbour", "emptySpec", "inconsistentIV", "relativized" ]
@@ -196,18 +199,46 @@ prettyOutput' ma = concat [ ("corpus module: " ++ m):map (replicate 4 ' ' ++) (p
     numSpeced = forward + backward + centered + reflexive
 prettyAnal a = [ k ++ ": " ++ show v | (k, v) <- M.toList a ]
 
+-- | How much context to show for each difference in the
+-- contextual-diff output.
+linesOfContext :: Int
+linesOfContext = 2
+
+diffMain :: String -> String -> IO ()
+diffMain file1 file2 = do
+  printf "Diffing \"%s\", \"%s\"\n" file1 file2
+  input1 <- S.readFile file1
+  input2 <- S.readFile file2
+  let execs1 = unfoldr oneExec (S.lines input1)
+  let execs2 = unfoldr oneExec (S.lines input2)
+  let identify :: [S.ByteString] -> S.ByteString
+      identify = S.concat . take 1 . mrSubList . (=~ "FILE=\"([^\"]*)\"") . S.concat . take 1
+  let trim = drop 4 . init . init . init . init
+  let map1 = M.fromList [ (identify e, trim e) | e <- execs1 ]
+  let map2 = M.fromList [ (identify e, trim e) | e <- execs2 ]
+  let dmap = M.intersectionWith (getContextDiff linesOfContext) map1 map2
+  putStrLn "--------------------------------------------------"
+  forM_ (M.toList dmap) $ \ (file, diff) -> do
+    let output = render $ prettyContextDiff (text file1) (text file2) (text . S.unpack) diff
+    unless (null output) $ do
+      printf "FILE=\"%s\":\n%s------------------------------\n" (S.unpack file) output
+  return ()
+
 
 main :: IO ()
 main = do
-  input <- S.getContents
-  let ls = S.lines input
-  let execs = unfoldr oneExec ls
-  let ma = M.unionsWith (M.unionWith (+)) $ map analyseExec execs
   args <- getArgs
   case args of
-    "-R":_ -> print ma
-    _      -> putStrLn . prettyOutput $ ma
-  return ()
+    "-d":file1:file2:_ -> diffMain file1 file2
+    _                  -> do
+      input <- S.getContents
+      let ls = S.lines input
+      let execs = unfoldr oneExec ls
+      let ma = M.unionsWith (M.unionWith (+)) $ map analyseExec execs
+      case args of
+        "-R":_ -> print ma
+        _      -> putStrLn . prettyOutput $ ma
+      return ()
 
 runTest = M.unionsWith (M.unionWith (+)) . map analyseExec . unfoldr oneExec
 
