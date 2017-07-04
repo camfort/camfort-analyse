@@ -16,8 +16,8 @@ import qualified Debug.Trace as D
 import Data.Algorithm.Diff
 import Data.Algorithm.DiffContext
 
-varKeywords = [ "readOnce", "reflexive", "irreflexive", "forward", "backward", "centered", "atLeast", "atMost" ]
-spanKeywords = [ "tickAssign", "LHSnotHandled", "nonNeighbour", "emptySpec", "inconsistentIV", "relativized" ]
+varKeywords = [ "readOnce", "pointed", "nonpointed", "forward", "backward", "centered", "atLeast", "atMost" ]
+spanKeywords = [ "tickAssign", "LHSnotHandled", "nonNeighbour", "emptySpec", "inconsistentIV", "relativized", "tickLHSvar" ]
 
 dimName :: Int -> String
 dimName n = "dims"++show n
@@ -56,7 +56,7 @@ countByVars dimMap a l = M.unionsWith (+) $ [a, keysA] ++ varsA ++ map snd (filt
               , ( isMA && mulOps > 0 && plusOps == 0           ,   {- ==> -} M.singleton "multiActionMulOnly" n)
               , ( isMA                                         ,   {- ==> -} M.singleton "multiAction" n)
               , ( isMA && isSten && regOps > 0                 ,   {- ==> -} M.singleton (maOpsName regOps) n)
-              , ( justRef                                      ,   {- ==> -} M.singleton "justReflexive" n)
+              , ( justRef                                      ,   {- ==> -} M.singleton "justPointed" n)
               , ( ndims > 0                                    ,   {- ==> -} M.singleton (dimName ndims) n)
               , ( isJust mdep                                  ,   {- ==> -} M.singleton (depthName (fromJust mdep)) n)
               , ( regOps >= 0 && isSten                        ,   {- ==> -} M.singleton (regionOpsName regOps) n)
@@ -65,7 +65,7 @@ countByVars dimMap a l = M.unionsWith (+) $ [a, keysA] ++ varsA ++ map snd (filt
               , ( dimDist > 0 && isSten                        ,   {- ==> -} M.singleton (dimDistName dimDist) n)
               ]
     -- going through each variable name and counting:
-    varsA = [ M.singleton "someReflexive" 1 | v      <- splitVars l, justRef
+    varsA = [ M.singleton "somePointed" 1 | v      <- splitVars l, justRef
                                             , expDim <- maybeToList (M.lookup v dimMap), ndims < expDim ]
     -- generic keyword counting
     keysA   = M.fromList [ (k, n) | k <- varKeywords, l =~ re k  ] -- try each keyword
@@ -79,9 +79,9 @@ countByVars dimMap a l = M.unionsWith (+) $ [a, keysA] ++ varsA ++ map snd (filt
     mulOps  = countMulOps l
     dimDist = countDimDist l
     isSten  = l =~ "\\)[[:space:]]*stencil "
-    justRef = get keysA "reflexive" > 0 && (M.size keysA == 1 || (M.size keysA == 2 && get keysA "readOnce" > 0))
+    justRef = get keysA "pointed" > 0 && (M.size keysA == 1 || (M.size keysA == 2 && get keysA "readOnce" > 0))
     isSA    = count "forward" + count "backward" + count "centered" == 1
-    isSAI   = isSA && get keysA "irreflexive" > 0
+    isSAI   = isSA && get keysA "nonpointed" > 0
     isMA    = count "forward" + count "backward" + count "centered" > n
     count k = matchCount (makeRegex (re k) :: Regex) l
 -- Count interesting stuff in a given line, and given the group's
@@ -185,8 +185,8 @@ prettyOutput' :: ModAnalysis -> [String]
 prettyOutput' ma = concat [ ("corpus module: " ++ m):map (replicate 4 ' ' ++) (prettyAnal a) | (m, a) <- M.toList ma ] ++
                           ( "overall":map (replicate 4 ' ' ++) (prettyAnal combined) ) ++
                           ( map (replicate 4 ' '++) [
-                              printf "numStencilSpecs (%d) <= forward (%d) + backward (%d) + centered (%d) + reflexive (%d) = %d"
-                                     numStencilSpecs forward backward centered reflexive numSpeced
+                              printf "numStencilSpecs (%d) <= forward (%d) + backward (%d) + centered (%d) + pointed (%d) = %d"
+                                     numStencilSpecs forward backward centered pointed numSpeced
                               ] )
   where
     combined = M.unionsWith (+) $ M.elems ma
@@ -195,8 +195,8 @@ prettyOutput' ma = concat [ ("corpus module: " ++ m):map (replicate 4 ' ' ++) (p
     forward = get "forward"
     backward = get "backward"
     centered = get "centered"
-    reflexive = get "reflexive"
-    numSpeced = forward + backward + centered + reflexive
+    pointed = get "pointed"
+    numSpeced = forward + backward + centered + pointed
 prettyAnal a = [ k ++ ": " ++ show v | (k, v) <- M.toList a ]
 
 -- | How much context to show for each difference in the
@@ -248,9 +248,9 @@ test0 = map S.pack [
     , "Inferring stencil specs for \"/home/mrd45/src/corpus/samples/weird/w1.f\""
     , ""
     , "Output of the analysis:"
-    , "((38,9),(38,32))         stencil readOnce, reflexive(dims=1) :: real"
+    , "((38,9),(38,32))         stencil readOnce, pointed(dims=1) :: real"
     , "((38,9),(38,32))         EVALMODE: Non-neighbour relative subscripts (tag: nonNeighbour)"
-    , "((42,9),(42,32))         stencil readOnce, reflexive :: x"
+    , "((42,9),(42,32))         stencil readOnce, pointed :: x"
     , "%%% end stencils-infer MOD=samples FILE=\"/home/mrd45/src/corpus/samples/weird/w1.f\""
     ]
 
@@ -260,17 +260,17 @@ test1 = map S.pack [
     , "Inferring stencil specs for \"/home/mrd45/src/corpus/samples/weird/w1.f\""
     , ""
     , "Output of the analysis:"
-    , "((38,9),(38,32))         stencil readOnce, reflexive(dims=1) :: real"
+    , "((38,9),(38,32))         stencil readOnce, pointed(dims=1) :: real"
     , "((38,9),(38,32))         EVALMODE: Non-neighbour relative subscripts (tag: nonNeighbour)"
-    , "((44,11),(44,23))        stencil readOnce, reflexive(dims=1) :: u"
-    , "((51,12),(51,54))        stencil readOnce, reflexive(dims=1) :: real, v"
+    , "((44,11),(44,23))        stencil readOnce, pointed(dims=1) :: u"
+    , "((51,12),(51,54))        stencil readOnce, pointed(dims=1) :: real, v"
     , "((51,12),(51,54))        EVALMODE: Non-neighbour relative subscripts (tag: nonNeighbour)"
-    , "((56,12),(56,22))        stencil readOnce, reflexive(dims=1) :: v"
-    , "((70,9),(70,34))         stencil readOnce, irreflexive(dims=1), (backward(depth=1, dim=1)) :: c"
-    , "((70,9),(70,34))         stencil readOnce, reflexive(dims=1) :: d"
+    , "((56,12),(56,22))        stencil readOnce, pointed(dims=1) :: v"
+    , "((70,9),(70,34))         stencil readOnce, nonpointed(dims=1), (backward(depth=1, dim=1)) :: c"
+    , "((70,9),(70,34))         stencil readOnce, pointed(dims=1) :: d"
     , "((71,9),(71,34))         stencil readOnce, (backward(depth=1, dim=1)) :: b"
-    , "((75,9),(75,40))         stencil readOnce, reflexive(dims=1) :: b, c, d, e"
-    , "((75,9),(75,40))         stencil readOnce, irreflexive(dims=1), (forward(depth=1, dim=1)) :: x"
+    , "((75,9),(75,40))         stencil readOnce, pointed(dims=1) :: b, c, d, e"
+    , "((75,9),(75,40))         stencil readOnce, nonpointed(dims=1), (forward(depth=1, dim=1)) :: x"
     , ""
     , "0.14user 0.00system 0:00.15elapsed 98%CPU (0avgtext+0avgdata 20616maxresident)k"
     , "0inputs+8outputs (0major+1395minor)pagefaults 0swaps"
@@ -293,20 +293,20 @@ test1 = map S.pack [
     , "Output of the analysis:"
     , ""
     , "/home/mrd45/um/trunk/src/io_services/server/stash/ios_server_coupler.F90"
-    , "((108,3),(108,60))       stencil readOnce, reflexive(dims=2) :: offset_map"
+    , "((108,3),(108,60))       stencil readOnce, pointed(dims=2) :: offset_map"
     , "((108,3),(108,60))       EVALMODE: assign to relative array subscript (tag: tickAssign)"
-    , "((109,3),(110,37))       stencil readOnce, reflexive(dims=2) :: offset_map, size_map"
+    , "((109,3),(110,37))       stencil readOnce, pointed(dims=2) :: offset_map, size_map"
     , "((109,3),(110,37))       EVALMODE: assign to relative array subscript (tag: tickAssign)"
-    , "((111,3),(112,55))       stencil readOnce, reflexive(dims=1) :: grid_row_end, grid_row_start"
+    , "((111,3),(112,55))       stencil readOnce, pointed(dims=1) :: grid_row_end, grid_row_start"
     , "((111,3),(112,55))       EVALMODE: assign to relative array subscript (tag: tickAssign)"
-    , "((130,3),(130,41))       stencil reflexive(dims=2) :: size_map"
+    , "((130,3),(130,41))       stencil pointed(dims=2) :: size_map"
     , "((130,3),(130,41))       EVALMODE: assign to relative array subscript (tag: tickAssign)"
-    , "((136,3),(136,37))       stencil reflexive(dims=2) :: size_map"
+    , "((136,3),(136,37))       stencil pointed(dims=2) :: size_map"
     , "((136,3),(136,37))       EVALMODE: assign to relative array subscript (tag: tickAssign)"
-    , "((137,3),(138,59))       stencil readOnce, reflexive(dims=1) :: grid_point_end, grid_point_start"
+    , "((137,3),(138,59))       stencil readOnce, pointed(dims=1) :: grid_point_end, grid_point_start"
     , "((137,3),(138,59))       EVALMODE: assign to relative array subscript (tag: tickAssign)"
-    , "((139,24),(141,48))      stencil readOnce, irreflexive(dims=1,2,3), (reflexive(dim=1))*(centered(depth=1, dim=2)) + (reflexive(dim=2))*(centered(depth=1, dim=1)) :: p"
-    , "((139,24),(141,48))      stencil readOnce, (reflexive(dim=1))*(reflexive(dim=2)) :: rhs"
+    , "((139,24),(141,48))      stencil readOnce, nonpointed(dims=1,2,3), (pointed(dim=1))*(centered(depth=1, dim=2)) + (pointed(dim=2))*(centered(depth=1, dim=1)) :: p"
+    , "((139,24),(141,48))      stencil readOnce, (pointed(dim=1))*(pointed(dim=2)) :: rhs"
     , "((139,24),(141,48))      EVALMODE: dimensionality=1 :: rhs"
     , "((147,7),(147,78))       EVALMODE: LHS is an array subscript we  can't handle (tag: LHSnotHandled)"
     , ""
@@ -328,27 +328,27 @@ test2 = map S.pack [
     , ""
     , "/home/mrd45/um/trunk/src/scm/initialise/initqlcf.F90"
     , "((126,5),(126,18))      EVALMODE: assign to relative array subscript (tag: tickAssign)"
-    , "((131,9),(131,66))      stencil readOnce, reflexive(dims=1,2) :: q, wqsat"
+    , "((131,9),(131,66))      stencil readOnce, pointed(dims=1,2) :: q, wqsat"
     , "((131,9),(131,66))      EVALMODE: assign to relative array subscript (tag: tickAssign)"
-    , "((132,9),(132,36))      stencil reflexive(dims=1,2) :: ocf"
+    , "((132,9),(132,36))      stencil pointed(dims=1,2) :: ocf"
     , "((132,9),(132,36))      EVALMODE: assign to relative array subscript (tag: tickAssign)"
-    , "((136,9),(136,42))      stencil readOnce, reflexive(dims=1,2) :: q, wqsat"
+    , "((136,9),(136,42))      stencil readOnce, pointed(dims=1,2) :: q, wqsat"
     , "((136,9),(136,42))      EVALMODE: assign to relative array subscript (tag: tickAssign)"
-    , "((137,9),(137,42))      stencil readOnce, reflexive(dims=1,2) :: ocf"
+    , "((137,9),(137,42))      stencil readOnce, pointed(dims=1,2) :: ocf"
     , "((137,9),(137,42))      EVALMODE: assign to relative array subscript (tag: tickAssign)"
     , "((146,9),(146,22))      EVALMODE: assign to relative array subscript (tag: tickAssign)"
     , "((148,9),(148,22))      EVALMODE: assign to relative array subscript (tag: tickAssign)"
     , "((195,5),(195,19))      EVALMODE: assign to relative array subscript (tag: tickAssign)"
     , "((196,5),(196,19))      EVALMODE: assign to relative array subscript (tag: tickAssign)"
-    , "((199,7),(199,20))      stencil reflexive(dims=1,2) :: ocf"
-    , "((199,7),(199,20))      stencil readOnce, reflexive(dims=1,2) :: q"
-    , "((199,7),(199,20))      stencil reflexive(dims=1,2) :: t, wqsat"
+    , "((199,7),(199,20))      stencil pointed(dims=1,2) :: ocf"
+    , "((199,7),(199,20))      stencil readOnce, pointed(dims=1,2) :: q"
+    , "((199,7),(199,20))      stencil pointed(dims=1,2) :: t, wqsat"
     , "((199,7),(199,20))      EVALMODE: assign to relative array subscript (tag: tickAssign)"
-    , "((201,7),(201,20))      stencil reflexive(dims=1,2) :: ocf"
-    , "((201,7),(201,20))      stencil readOnce, reflexive(dims=1,2) :: q"
-    , "((201,7),(201,20))      stencil reflexive(dims=1,2) :: t, wqsat"
+    , "((201,7),(201,20))      stencil pointed(dims=1,2) :: ocf"
+    , "((201,7),(201,20))      stencil readOnce, pointed(dims=1,2) :: q"
+    , "((201,7),(201,20))      stencil pointed(dims=1,2) :: t, wqsat"
     , "((201,7),(201,20))      EVALMODE: assign to relative array subscript (tag: tickAssign)"
-    , "((275,11),(275,54))     stencil atLeast, readOnce, reflexive(dims=1,2,3) :: p"
+    , "((275,11),(275,54))     stencil atLeast, readOnce, pointed(dims=1,2,3) :: p"
     , "((275,11),(275,54))     stencil atMost, readOnce, (forward(depth=2, dim=3)) :: p"
     , ""
     , "1.23user 0.03system 0:01.83elapsed 69%CPU (0avgtext+0avgdata 76092maxresident)k"
@@ -357,7 +357,7 @@ test2 = map S.pack [
     , "%%% end stencils-infer MOD=um FILE=\"/home/mrd45/um/trunk/src/scm/initialise/initqlcf.F90\""
   ]
 
-test2out = M.fromList [("um",M.fromList [("atLeast",1),("atMost",1),("boundedBoth",1),("depth2",1),("dims2",14),("dims3",1),("forward",1),("justReflexive",7),("numStencilLines",12),("numStencilSpecs",16),("parseOk",1),("readOnce",9),("reflexive",15),("tickAssign",11),("tickAssignSuccess",6)])]
+test2out = M.fromList [("um",M.fromList [("atLeast",1),("atMost",1),("boundedBoth",1),("depth2",1),("dims2",14),("dims3",1),("forward",1),("justPointed",7),("numStencilLines",12),("numStencilSpecs",16),("parseOk",1),("readOnce",9),("pointed",15),("tickAssign",11),("tickAssignSuccess",6)])]
 
 runTests = do
   print $ runTest test2 == test2out

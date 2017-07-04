@@ -2,7 +2,7 @@
 
 # define where things are
 
-CORPUS=$HOME/src/corpus
+CORPUS=/local/scratch/mrd45/corpus
 UNIFIEDMODEL=$HOME/um
 
 # choose which things we are interested in investigating
@@ -11,8 +11,8 @@ UNIFIEDMODEL=$HOME/um
 #DIRS="$CORPUS/computational-physics-1"
 
 # for paper
-# ARPACK_NG, BLAS, CP, E3MG (EA), GEOS-CHEM, Hybridr4, Navier, SpecFem3D, UM
-DIRS="$CORPUS/arpack-ng $CORPUS/specfem3d $CORPUS/geos-chem $CORPUS/blas $CORPUS/computational-physics-2 $CORPUS/e3mg-ea $CORPUS/hybrid4 $CORPUS/navier $UNIFIEDMODEL/trunk/src"
+# ARPACK_NG, BLAS, CP, E3MG (EA), GEOS-CHEM, Hybridr4, Navier, SpecFem3D, Mudpack, Cliffs, UM
+DIRS="$CORPUS/arpack-ng $CORPUS/specfem3d $CORPUS/geos-chem-camfort $CORPUS/blas $CORPUS/computational-physics-1 $CORPUS/e3me $CORPUS/hybrid4 $CORPUS/navier $CORPUS/mudpack $CORPUS/cliffs-src $UNIFIEDMODEL/trunk/src"
 
 # select the 'sensible' name from the full pathname, somewhat subjectively
 function find_sensible_name() {
