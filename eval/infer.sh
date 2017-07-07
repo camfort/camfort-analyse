@@ -51,7 +51,7 @@ function start_thread() {
     echo "LineCount: $lines"
     echo "StartTime: `date --rfc-3339=seconds`"
     echo "Progress: $c / $TOTAL"
-    "$TIME" stack exec camfort -- stencils-infer "$f" "$TMPOUT" --eval 2>&1
+    "$TIME" camfort stencils-infer "$f" --eval 2>&1
     echo "EndTime: `date --rfc-3339=seconds`"
     echo "%%% end stencils-infer MOD=$m FILE=\"$f\""
     echo "[PID=$p REM=$r] Ending stencils-infer MOD=$m FILE=\"$f\"" >&2

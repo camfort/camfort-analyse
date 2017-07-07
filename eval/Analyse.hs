@@ -78,7 +78,7 @@ countByVars dimMap a l = M.unionsWith (+) $ [a, keysA] ++ varsA ++ map snd (filt
     plusOps = countPlusOps l
     mulOps  = countMulOps l
     dimDist = countDimDist l
-    isSten  = l =~ "\\)[[:space:]]*stencil "
+    isSten  = l =~ "\\)[[:space:]]*(stencil|access) "
     justRef = get keysA "pointed" > 0 && (M.size keysA == 1 || (M.size keysA == 2 && get keysA "readOnce" > 0))
     isSA    = count "forward" + count "backward" + count "centered" == 1
     isSAI   = isSA && get keysA "nonpointed" > 0
@@ -89,7 +89,7 @@ countByVars dimMap a l = M.unionsWith (+) $ [a, keysA] ++ varsA ++ map snd (filt
 countBySpan :: Analysis -> S.ByteString -> Analysis
 countBySpan a l = M.unionsWith (+) $ [a, keysA] ++ map snd (filter fst counts)
   where
-    counts  = [ ( l =~ "stencil "                , {- ==> -} M.fromList [("numStencilLines", 1),
+    counts  = [ ( l =~ "access |stencil "        , {- ==> -} M.fromList [("numStencilLines", 1),
                                                                          ("numStencilSpecs", n)] )
               , ( get a "numStencilSpecs" > 0 &&
                   get keysA "tickAssign" > 0     , {- ==> -} M.singleton "tickAssignSuccess" 1 )
@@ -130,7 +130,7 @@ analyseExec (e1:es)
   | any (=~ "parsing failed") es = M.singleton modName . M.fromList $ [("parseFailed", 1), ("lexOrParseFailed", 1)] ++ linesTotal
   | otherwise = M.singleton modName . M.unionsWith (+) . (parseOk:) . map eachGroup $ gs
   where
-    gs         = groupBy ((==) `on` srcSpan) . filter (=~ "\\)[[:space:]]*(stencil|EVALMODE)") $ es
+    gs         = groupBy ((==) `on` srcSpan) . filter (=~ "\\)[[:space:]]*(stencil|access|EVALMODE)") $ es
     modName    = drop 4 . S.unpack . (=~ "MOD=([^ ]*)") $ e1
     lineCount  = msum (es >>= map (fmap fst . S.readInt) . mrSubList . (=~ "LineCount: ([0-9]*)"))
     linesTotal = case lineCount of Just n -> [("linesTotal", n)]; _ -> []
