@@ -1,18 +1,12 @@
 #!/bin/bash
 
-# define where things are
+# Define where things are:
+CORPUS=/home/camfort/corpus
 
-CORPUS=/local/scratch/mrd45/corpus
-UNIFIEDMODEL=$HOME/um
+# Choose which things we are interested in investigating by modifying DIRS variable.
 
-# choose which things we are interested in investigating
-
-#DIRS="$CORPUS/samples $CORPUS/computational-physics-1 $CORPUS/computational-physics-2 $CORPUS/e3mg-ea $CORPUS/e3mg-mark $CORPUS/e3mg-modernise $CORPUS/hybrid4 $CORPUS/navier $UNIFIEDMODEL/trunk/src"
-#DIRS="$CORPUS/computational-physics-1"
-
-# for paper
-# ARPACK_NG, BLAS, CP, E3MG (EA), GEOS-CHEM, Hybridr4, Navier, SpecFem3D, Mudpack, Cliffs, UM
-DIRS="$CORPUS/arpack-ng $CORPUS/specfem3d $CORPUS/geos-chem-camfort $CORPUS/blas $CORPUS/computational-physics-1 $CORPUS/e3me $CORPUS/hybrid4 $CORPUS/navier $CORPUS/mudpack $CORPUS/cliffs-src $UNIFIEDMODEL/trunk/src"
+# for OOPSLA paper: ARPACK_NG, BLAS, CP, E3MG (EA), GEOS-CHEM, Hybridr4, Navier, SpecFem3D, Mudpack, Cliffs
+DIRS="$CORPUS/navier $CORPUS/arpack-ng $CORPUS/specfem3d $CORPUS/geos-chem-camfort $CORPUS/blas $CORPUS/computational-physics-1 $CORPUS/e3me $CORPUS/hybrid4 $CORPUS/mudpack $CORPUS/cliffs-src"
 
 # select the 'sensible' name from the full pathname, somewhat subjectively
 function find_sensible_name() {
