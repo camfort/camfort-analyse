@@ -8,7 +8,7 @@ CLOC=cloc
 
 [ -z "`which cloc`" ] && echo "Please install the 'cloc' program." && exit 1
 
-DIR=`dirname "$0"`
+DIR=`dirname \`readlink -f "$0"\``
 declare -g -i TOTAL COUNT
 TOTAL=`"$DIR"/files.sh | wc -l`
 COUNT=0
