@@ -91,6 +91,7 @@ countBySpan a l = M.unionsWith (+) $ [a, keysA] ++ map snd (filter fst counts)
   where
     counts  = [ ( l =~ "access |stencil "        , {- ==> -} M.fromList [("numStencilLines", 1),
                                                                          ("numStencilSpecs", n)] )
+              , ( l =~ "access"                  , {- ==> -} M.fromList [("numAccessSpecs", n)])
               , ( get a "numStencilSpecs" > 0 &&
                   get keysA "tickAssign" > 0     , {- ==> -} M.singleton "tickAssignSuccess" 1 )
               , ( isJust mDimTag                 , {- ==> -} M.singleton (dimTagName (fromJust mDimTag)) n)
