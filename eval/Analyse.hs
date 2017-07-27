@@ -66,7 +66,7 @@ countByVars dimMap a l = M.unionsWith (+) $ [a, keysA] ++ varsA ++ map snd (filt
               ]
     -- going through each variable name and counting:
     varsA = [ M.singleton "somePointed" 1 | v      <- splitVars l, justRef
-                                            , expDim <- maybeToList (M.lookup v dimMap), ndims < expDim ]
+                                          , expDim <- maybeToList (M.lookup v dimMap), ndims < expDim ]
     -- generic keyword counting
     keysA   = M.fromList [ (k, n) | k <- varKeywords, l =~ re k  ] -- try each keyword
     re k    = "[^A-Za-z]" ++ k ++ "[^A-Za-z]" -- form a regular expression from a keyword
@@ -82,7 +82,7 @@ countByVars dimMap a l = M.unionsWith (+) $ [a, keysA] ++ varsA ++ map snd (filt
     justRef = get keysA "pointed" > 0 && (M.size keysA == 1 || (M.size keysA == 2 && get keysA "readOnce" > 0))
     isSA    = count "forward" + count "backward" + count "centered" == 1
     isSAI   = isSA && get keysA "nonpointed" > 0
-    isMA    = count "forward" + count "backward" + count "centered" > n
+    isMA    = count "forward" + count "backward" + count "centered" > 1
     count k = matchCount (makeRegex (re k) :: Regex) l
 -- Count interesting stuff in a given line, and given the group's
 -- analysis to this point, grouped by span.
@@ -91,7 +91,7 @@ countBySpan a l = M.unionsWith (+) $ [a, keysA] ++ map snd (filter fst counts)
   where
     counts  = [ ( l =~ "access |stencil "        , {- ==> -} M.fromList [("numStencilLines", 1),
                                                                          ("numStencilSpecs", n)] )
-              , ( l =~ "access"                  , {- ==> -} M.fromList [("numAccessSpecs", n)])
+              , ( l =~ "access "                  , {- ==> -} M.fromList [("numAccessSpecs", n)])
               , ( get a "numStencilSpecs" > 0 &&
                   get keysA "tickAssign" > 0     , {- ==> -} M.singleton "tickAssignSuccess" 1 )
               , ( isJust mDimTag                 , {- ==> -} M.singleton (dimTagName (fromJust mDimTag)) n)
