@@ -57,6 +57,7 @@ countByVars dimMap a l = M.unionsWith (+) $ [a, keysA] ++ varsA ++ map snd (filt
               , ( isMA                                         ,   {- ==> -} M.singleton "multiAction" n)
               , ( isMA && isSten && regOps > 0                 ,   {- ==> -} M.singleton (maOpsName regOps) n)
               , ( justRef                                      ,   {- ==> -} M.singleton "justPointed" n)
+              , ( justRefM                                     ,   {- ==> -} M.singleton "justPointedM" n)
               , ( ndims > 0                                    ,   {- ==> -} M.singleton (dimName ndims) n)
               , ( isJust mdep                                  ,   {- ==> -} M.singleton (depthName (fromJust mdep)) n)
               , ( regOps >= 0 && isSten                        ,   {- ==> -} M.singleton (regionOpsName regOps) n)
@@ -80,6 +81,7 @@ countByVars dimMap a l = M.unionsWith (+) $ [a, keysA] ++ varsA ++ map snd (filt
     dimDist = countDimDist l
     isSten  = l =~ "\\)[[:space:]]*(stencil|access) "
     justRef = get keysA "pointed" > 0 && (M.size keysA == 1 || (M.size keysA == 2 && get keysA "readOnce" > 0))
+    justRefM = all (\ k -> k == "pointed" || k == "readOnce") . map fst . filter ((>0) . snd) $ M.toList keysA
     isSA    = count "forward" + count "backward" + count "centered" == 1
     isSAI   = isSA && get keysA "nonpointed" > 0
     isMA    = count "forward" + count "backward" + count "centered" > 1
