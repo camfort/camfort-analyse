@@ -7,9 +7,6 @@ DIRS=$(echo /home/camfort/corpus/*)
 # Override this with export CORPUS=/dir/
 : ${CORPUS:=$DIRS}
 
-# Choose which things we are interested in investigating by modifying DIRS variable.
-DIRS=$(echo $CORPUS/*)
-
 # select the 'sensible' name from the full pathname, somewhat subjectively
 function find_sensible_name() {
     declare -A SENSELESSNAMES=([trunk]=1 [src]=1)
@@ -22,7 +19,7 @@ function find_sensible_name() {
 }
 
 
-for d in $DIRS; do
+for d in $CORPUS; do
     if [ -d "$d" ]; then
         n=`find_sensible_name "$d"`
         find "$d" '(' -iname '*.f9?' -o -iname '*.f' ')' -printf "$n,%p\n"
