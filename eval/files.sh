@@ -1,7 +1,11 @@
 #!/bin/bash
 
-# Define where things are:
-CORPUS=/home/camfort/corpus
+# Default corpus
+DIRS=$(echo /home/camfort/corpus/*)
+
+# Define where things are
+# Override this with export CORPUS=/dir/
+: ${CORPUS:=$DIRS}
 
 # Choose which things we are interested in investigating by modifying DIRS variable.
 DIRS=$(echo $CORPUS/*)
