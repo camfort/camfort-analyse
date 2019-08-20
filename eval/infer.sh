@@ -44,7 +44,6 @@ function start_thread() {
     c=$3
     r=`printf "$FMT" $((TOTAL - c))`
     p=`printf "%05d" $BASHPID`
-    [ -z "${MODULES[$m]}" ] && MODULES+=([$m]=yes)
     echo "[PID=$p REM=$r] Starting stencils-infer MOD=$m FILE=\"$f\"..." >&2
     echo "%%% begin stencils-infer MOD=$m FILE=\"$f\""
     lines=`$CLOC --progress-rate=0 --quiet --csv "$f" | tail -1 | cut -f 5 -d,`

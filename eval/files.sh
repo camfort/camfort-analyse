@@ -19,7 +19,7 @@ function find_sensible_name() {
 }
 
 
-for d in $DIRS; do
+for d in $CORPUS; do
     if [ -d "$d" ]; then
         n=`find_sensible_name "$d"`
         find "$d" '(' -iname '*.f9?' -o -iname '*.f' ')' -printf "$n,%p\n"
